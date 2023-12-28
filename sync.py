@@ -9,12 +9,12 @@ import re
 import uuid
 from human_scaling import HumanBytes
 from discord import DiscordApi
+from resolution_parser import ResolutionParser
 
 load_dotenv()
 
 WALLPAPER_OUTPUT_DIR = os.getenv('WALLPAPER_OUTPUT_DIR')
-os.makedirs(WALLPAPER_OUTPUT_DIR, exist_ok=True)
-os.makedirs("log", exist_ok=True)
+download_dir_name = "download"
 
 def init_logging(): 
     discord_logger = logging.getLogger('discord')
@@ -34,7 +34,7 @@ def init_logging():
     discord_logger.addHandler(handler)
 
     return discord_logger
-
+os.makedirs("log", exist_ok=True)
 handler = init_logging()
 
 def sanitise(url):
@@ -73,11 +73,25 @@ def write_state(state):
 
 downloaded_urls = read_state()
 
+def create_app_folders():
+    os.makedirs(WALLPAPER_OUTPUT_DIR, exist_ok=True)
+
+    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        _, channel_name = channel.split('|')
+
+        os.makedirs(os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, download_dir_name), exist_ok=True)
+
+        for d in ResolutionParser().get_all_targets():
+            os.makedirs(os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, d), exist_ok=True)
+
+create_app_folders()
+
+
 api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
-while True:
+
+while False:
     for channel in os.getenv("DISCORD_CHANNELS").split(','):
         channel_id, channel_name = channel.split('|')
-        os.makedirs(os.path.join(WALLPAPER_OUTPUT_DIR, channel_name), exist_ok=True)
 
         r=api.get_messages(channel_id)
         with open("log/data.json", 'w', encoding="utf-8") as f:
@@ -88,7 +102,7 @@ while True:
                 for attachment in row['attachments']:
                     url = attachment['url']
                     
-                    target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, sanitise(url))
+                    target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, download_dir_name, sanitise(url))
 
                     if url not in downloaded_urls[channel_id]:
                         downloaded_urls[channel_id] += [url]
@@ -105,3 +119,19 @@ while True:
     print("sleeping")
     import time
     time.sleep(60)
+
+for channel in os.getenv("DISCORD_CHANNELS").split(','):
+    channel_id, channel_name = channel.split('|')
+    parser = ResolutionParser()
+
+    base = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name)
+    for d, n, fi in os.walk(os.path.join(base, download_dir_name)):
+        print(d, n, fi)
+
+        for f in fi:
+            file_path = os.path.join(base, download_dir_name, f)
+            target, x, y, r = parser.get_folder_for_file(file_path)
+            print(f"{f} -> {target} ({x}, {y}, {r})")
+
+            os.rename(file_path, os.path.join(base, target, f))
+
