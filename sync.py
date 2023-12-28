@@ -10,6 +10,7 @@ import uuid
 from human_scaling import HumanBytes
 from discord import DiscordApi
 from resolution_parser import ResolutionParser
+import time
 
 load_dotenv()
 
@@ -86,11 +87,23 @@ def create_app_folders():
 
 create_app_folders()
 
+def bulk_process_download():
+    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        channel_id, channel_name = channel.split('|')
+        parser = ResolutionParser()
 
-api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
-parser = ResolutionParser()
+        base = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name)
+        for d, n, fi in os.walk(os.path.join(base, download_dir_name)):
+            print(d, n, fi)
 
-while True:
+            for f in fi:
+                file_path = os.path.join(base, download_dir_name, f)
+                target, x, y, r = parser.get_folder_for_file(file_path)
+                print(f"{f} -> {target} ({x}, {y}, {r})")
+
+                os.rename(file_path, os.path.join(base, target, f))
+
+def process_loop():
     for channel in os.getenv("DISCORD_CHANNELS").split(','):
         channel_id, channel_name = channel.split('|')
 
@@ -114,7 +127,6 @@ while True:
                             f.write(dl.content)
 
                         downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
-                        print(f'{sanitise(url)}\t')
 
                         resolution_target_dir, x, y, r = parser.get_folder_for_file(target)
                         print(f"{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {r})")
@@ -123,23 +135,13 @@ while True:
 
     write_state(downloaded_urls)
 
-    print("sleeping")
-    import time
-    time.sleep(60)
 
-def bulk_process_download():
-    for channel in os.getenv("DISCORD_CHANNELS").split(','):
-        channel_id, channel_name = channel.split('|')
-        parser = ResolutionParser()
+api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
+parser = ResolutionParser()
 
-        base = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name)
-        for d, n, fi in os.walk(os.path.join(base, download_dir_name)):
-            print(d, n, fi)
-
-            for f in fi:
-                file_path = os.path.join(base, download_dir_name, f)
-                target, x, y, r = parser.get_folder_for_file(file_path)
-                print(f"{f} -> {target} ({x}, {y}, {r})")
-
-                os.rename(file_path, os.path.join(base, target, f))
-
+while True:
+    try:
+        process_loop()
+    finally:
+        print("sleeping")
+        time.sleep(60)
