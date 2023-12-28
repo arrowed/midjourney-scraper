@@ -1,10 +1,13 @@
-import discord
+
 import os
 from dotenv import load_dotenv
-
-
+import requests
+import json
 import logging
 import logging.handlers
+import re
+import uuid
+from human_scaling import HumanBytes
 
 load_dotenv()
 
@@ -33,18 +36,89 @@ def init_logging():
 
 handler = init_logging()
 
-class MyClient(discord.Client):
-    async def on_ready(self):
-        print('Logged on as', self.user)
+class DiscordApi:
+    def __init__(self, token):
+        self.token = token
 
-    async def on_message(self, message):
-        # don't respond to ourselves
-        if message.author == self.user:
-            return
+        self.username = None
+        self.id = None
+        self.email = None
+        self.phone = None
 
-        logging.info("Hi")
+        self.HEADERS = {"authorization": self.token, "content-type": "application/json"}
+        self._validate()
 
-intents = discord.Intents.default()
-intents.message_content = True
-client = MyClient(intents=intents)
-client.run(os.getenv('DISCORD_CLIENT_TOKEN'))
+    def _validate(self) -> None:
+        """This will check if the discord token works"""
+        url = f"https://discord.com/api/users/@me"
+        r = requests.get(url, headers=self.HEADERS)
+        if r.status_code == 200:
+            print(f"Valid token: {self.token}" )
+            data = r.json()
+            self.username = data['username'] + "#" + data['discriminator']
+            self.id = data['id']
+            self.email = data['email']
+            self.phone = data['phone']
+        else:
+            print(f"Invalid token: {self.token}")
+            exit()
+
+    def get_messages(self, channel_id: str, page: int = 0) -> list:
+        """It will get 25 messages from a channel"""
+        offset = 25 * page
+        url = f"https://discord.com/api/channels/{channel_id}/messages" #/search?offset={offset}"
+        r = requests.get(url, headers=self.HEADERS)
+        if r.status_code in [200, 201, 204]:
+            return r.json()
+        else:
+            return []
+
+def sanitise(url):
+    resource_name = url.split('/')[-1].split('?')[0]
+    extension = '.' + resource_name.split('.')[-1]
+    file_base = "".join(resource_name.split('.')[0:-1])
+
+    uniq = '_' + uuid.uuid4().hex
+
+    return ("".join([c for c in file_base if re.match(r'\w', c)]) + uniq + extension)[0:200]
+
+fetched = []
+if os.path.exists(os.path.join(WALLPAPER_OUTPUT_DIR, 'downloaded.txt')):
+    with open(os.path.join(WALLPAPER_OUTPUT_DIR, 'downloaded.txt'), 'r') as checkpoint:
+        for line in checkpoint.readlines():
+            fetched += [line.strip()]
+        print(fetched)
+
+api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
+while True:
+    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        channel_id, channel_name = channel.split('|')
+        os.makedirs(os.path.join(WALLPAPER_OUTPUT_DIR, channel_name), exist_ok=True)
+
+        r=api.get_messages(channel_id)
+        with open("log/data.json", 'w', encoding="utf-8") as f:
+            f.write(json.dumps(r, sort_keys=True, indent=2))
+
+        for row in r:
+            if 'attachments' in row.keys():
+                for attachment in row['attachments']:
+                    url = attachment['url']
+                    
+                    target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, sanitise(url))
+
+                    if url not in fetched:
+                        fetched += [url]
+
+                        dl = requests.get(url)
+                         
+                        with open(target, 'wb') as f:
+                            f.write(dl.content)
+                        downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
+                        print(f'{sanitise(url)}\t{downloaded_bytes}')
+
+    with open(os.path.join(WALLPAPER_OUTPUT_DIR, 'downloaded.txt'), 'w') as checkpoint:
+        checkpoint.writelines([str(i)+'\n' for i in fetched])
+
+    print("sleeping")
+    import time
+    time.sleep(60)
