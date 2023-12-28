@@ -88,8 +88,9 @@ create_app_folders()
 
 
 api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
+parser = ResolutionParser()
 
-while False:
+while True:
     for channel in os.getenv("DISCORD_CHANNELS").split(','):
         channel_id, channel_name = channel.split('|')
 
@@ -101,8 +102,8 @@ while False:
             if 'attachments' in row.keys():
                 for attachment in row['attachments']:
                     url = attachment['url']
-                    
-                    target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, download_dir_name, sanitise(url))
+                    filename = sanitise(url)
+                    target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, download_dir_name, filename)
 
                     if url not in downloaded_urls[channel_id]:
                         downloaded_urls[channel_id] += [url]
@@ -111,8 +112,14 @@ while False:
                          
                         with open(target, 'wb') as f:
                             f.write(dl.content)
+
                         downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
-                        print(f'{sanitise(url)}\t{downloaded_bytes}')
+                        print(f'{sanitise(url)}\t')
+
+                        resolution_target_dir, x, y, r = parser.get_folder_for_file(target)
+                        print(f"{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {r})")
+
+                        os.rename(target, os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename))
 
     write_state(downloaded_urls)
 
@@ -120,18 +127,19 @@ while False:
     import time
     time.sleep(60)
 
-for channel in os.getenv("DISCORD_CHANNELS").split(','):
-    channel_id, channel_name = channel.split('|')
-    parser = ResolutionParser()
+def bulk_process_download():
+    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        channel_id, channel_name = channel.split('|')
+        parser = ResolutionParser()
 
-    base = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name)
-    for d, n, fi in os.walk(os.path.join(base, download_dir_name)):
-        print(d, n, fi)
+        base = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name)
+        for d, n, fi in os.walk(os.path.join(base, download_dir_name)):
+            print(d, n, fi)
 
-        for f in fi:
-            file_path = os.path.join(base, download_dir_name, f)
-            target, x, y, r = parser.get_folder_for_file(file_path)
-            print(f"{f} -> {target} ({x}, {y}, {r})")
+            for f in fi:
+                file_path = os.path.join(base, download_dir_name, f)
+                target, x, y, r = parser.get_folder_for_file(file_path)
+                print(f"{f} -> {target} ({x}, {y}, {r})")
 
-            os.rename(file_path, os.path.join(base, target, f))
+                os.rename(file_path, os.path.join(base, target, f))
 
