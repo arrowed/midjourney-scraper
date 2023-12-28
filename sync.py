@@ -46,12 +46,32 @@ def sanitise(url):
 
     return ("".join([c for c in file_base if re.match(r'\w', c)]) + uniq + extension)[0:200]
 
-fetched = []
-if os.path.exists(os.path.join(WALLPAPER_OUTPUT_DIR, 'downloaded.txt')):
-    with open(os.path.join(WALLPAPER_OUTPUT_DIR, 'downloaded.txt'), 'r') as checkpoint:
-        for line in checkpoint.readlines():
-            fetched += [line.strip()]
-        print(fetched)
+
+def read_state():
+    fetched = {}
+    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        channel_id, channel_name = channel.split('|')
+
+        state_file = f"state-{channel_name}.txt"
+        fetched[channel_id] = []
+
+        if os.path.exists(os.path.join(WALLPAPER_OUTPUT_DIR, state_file)):
+            with open(os.path.join(WALLPAPER_OUTPUT_DIR, state_file), 'r') as checkpoint:
+                for line in checkpoint.readlines():
+                    fetched[channel_id] += [line.strip()]
+
+    return fetched
+
+def write_state(state): 
+    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        channel_id, channel_name = channel.split('|')
+
+        state_file = f"state-{channel_name}.txt"
+
+        with open(os.path.join(WALLPAPER_OUTPUT_DIR, state_file), 'w') as checkpoint:
+            checkpoint.writelines([str(i)+'\n' for i in state[channel_id]])
+
+downloaded_urls = read_state()
 
 api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
 while True:
@@ -70,8 +90,8 @@ while True:
                     
                     target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, sanitise(url))
 
-                    if url not in fetched:
-                        fetched += [url]
+                    if url not in downloaded_urls[channel_id]:
+                        downloaded_urls[channel_id] += [url]
 
                         dl = requests.get(url)
                          
@@ -80,8 +100,7 @@ while True:
                         downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
                         print(f'{sanitise(url)}\t{downloaded_bytes}')
 
-    with open(os.path.join(WALLPAPER_OUTPUT_DIR, 'downloaded.txt'), 'w') as checkpoint:
-        checkpoint.writelines([str(i)+'\n' for i in fetched])
+    write_state(downloaded_urls)
 
     print("sleeping")
     import time
