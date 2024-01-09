@@ -12,6 +12,8 @@ from discord import DiscordApi
 from resolution_parser import ResolutionParser
 import time
 
+from requests.exceptions import ConnectionError
+
 load_dotenv()
 
 WALLPAPER_OUTPUT_DIR = os.getenv('WALLPAPER_OUTPUT_DIR')
@@ -103,15 +105,49 @@ def bulk_process_download():
 
                 os.rename(file_path, os.path.join(base, target, f))
 
-def process_loop():
+def publish(target, channel_id, channel_name, resolution_target_dir, filename):
+    if os.getenv("NOTIFY_SERVER_URL", "") == "":
+        return
+
+    url = f"{os.getenv('NOTIFY_SERVER_URL')}/image"
+    headers = {"authorization": os.getenv("NOTIFY_SERVER_TOKEN"), "content-type": "application/json"}
+
+    try:    
+        payload = {
+            "channel": {
+                "id": channel_id,
+                "name": channel_name
+            },
+            "image": {
+                "classification": resolution_target_dir,
+                "filename": filename,
+                "data_path": target
+            }
+        }
+        r = requests.post(url, headers=headers, data=json.dumps(payload))
+        if r.status_code in [200]:
+            return r.json()
+        else:
+            return []
+    except ConnectionError:
+        pass
+    except Exception as e:
+        print(f"{e}")
+    finally:
+        pass
+
+def download_loop():
+    print(f"All channels {os.getenv('DISCORD_CHANNELS')}")
+    
     for channel in os.getenv("DISCORD_CHANNELS").split(','):
         channel_id, channel_name = channel.split('|')
+        print(f"Starting {channel_name} ({channel_id})")
 
-        r=api.get_messages(channel_id)
-        with open("log/data.json", 'w', encoding="utf-8") as f:
-            f.write(json.dumps(r, sort_keys=True, indent=2))
+        api_response=api.get_messages(channel_id)
+        with open(f"log/data-{channel_name}.json", 'w', encoding="utf-8") as f:
+            f.write(json.dumps(api_response, sort_keys=True, indent=2))
 
-        for row in r:
+        for row in api_response:
             if 'attachments' in row.keys():
                 for attachment in row['attachments']:
                     url = attachment['url']
@@ -128,10 +164,12 @@ def process_loop():
 
                         downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
 
-                        resolution_target_dir, x, y, r = parser.get_folder_for_file(target)
-                        print(f"{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {r})")
+                        resolution_target_dir, x, y, api_response = parser.get_folder_for_file(target)
+                        print(f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})")
 
                         os.rename(target, os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename))
+
+                        publish(target, channel_id, channel_name, resolution_target_dir, filename)
 
     write_state(downloaded_urls)
 
@@ -141,7 +179,8 @@ parser = ResolutionParser()
 
 while True:
     try:
-        process_loop()
+        # asyncio.run(publish_loop())
+        download_loop()
     finally:
         print("sleeping")
-        time.sleep(60)
+        time.sleep(30)
