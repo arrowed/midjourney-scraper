@@ -162,7 +162,13 @@ def download_loop():
                         with open(download_file, 'wb') as f:
                             f.write(dl.content)
 
-                        downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
+                        size = dl.headers.get('Content-Length')
+                        if size is None:
+                            size = 0
+                        else:
+                            size = int(size)
+                            
+                        downloaded_bytes=HumanBytes.format(size)
 
                         resolution_target_dir, x, y, api_response = parser.get_folder_for_file(download_file)
                         print(f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})")
