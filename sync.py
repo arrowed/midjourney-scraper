@@ -152,24 +152,25 @@ def download_loop():
                 for attachment in row['attachments']:
                     url = attachment['url']
                     filename = sanitise(url)
-                    target = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, download_dir_name, filename)
+                    download_file = os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, download_dir_name, filename)
 
                     if url not in downloaded_urls[channel_id]:
                         downloaded_urls[channel_id] += [url]
 
                         dl = requests.get(url)
                          
-                        with open(target, 'wb') as f:
+                        with open(download_file, 'wb') as f:
                             f.write(dl.content)
 
                         downloaded_bytes=HumanBytes.format(int(dl.headers.get('Content-Length')))
 
-                        resolution_target_dir, x, y, api_response = parser.get_folder_for_file(target)
+                        resolution_target_dir, x, y, api_response = parser.get_folder_for_file(download_file)
                         print(f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})")
 
-                        os.rename(target, os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename))
+                        target_file =  os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename)
+                        os.rename(download_file, target_file)
 
-                        publish(target, channel_id, channel_name, resolution_target_dir, filename)
+                        publish(target_file, channel_id, channel_name, resolution_target_dir, filename)
 
     write_state(downloaded_urls)
 
