@@ -105,7 +105,7 @@ def bulk_process_download():
 
                 os.rename(file_path, os.path.join(base, target, f))
 
-def publish(target, channel_id, channel_name, resolution_target_dir, filename):
+def publish(target, channel_id, channel_name, resolution_target_dir, filename, width, height, lengthBytes):
     if os.getenv("NOTIFY_SERVER_URL", "") == "":
         return
 
@@ -121,7 +121,10 @@ def publish(target, channel_id, channel_name, resolution_target_dir, filename):
             "image": {
                 "classification": resolution_target_dir,
                 "filename": filename,
-                "data_path": target
+                "data_path": target,
+                "width": width,
+                "height": height,
+                "size": lengthBytes
             }
         }
         r = requests.post(url, headers=headers, data=json.dumps(payload))
@@ -176,7 +179,7 @@ def download_loop():
                         target_file =  os.path.join(WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename)
                         os.rename(download_file, target_file)
 
-                        publish(target_file, channel_id, channel_name, resolution_target_dir, filename)
+                        publish(target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
 
     write_state(downloaded_urls)
 
