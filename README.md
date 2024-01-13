@@ -16,3 +16,7 @@ Duplicate `.env-template` to `.env` and define
 
 ## Running
 > python sync.py
+
+## Backprocessing
+Useful to debug the server component
+> python backprocess.py

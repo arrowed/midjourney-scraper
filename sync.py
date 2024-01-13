@@ -187,10 +187,11 @@ def download_loop():
 api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
 parser = ResolutionParser()
 
-while True:
-    try:
-        # asyncio.run(publish_loop())
-        download_loop()
-    finally:
-        print("sleeping")
-        time.sleep(30)
+if __name__ == '__main__':
+    while True:
+        try:
+            # asyncio.run(publish_loop())
+            download_loop()
+        finally:
+            print("sleeping")
+            time.sleep(30)
