@@ -1,0 +1,20 @@
+name: Run tests in container
+
+on:
+  push:
+    branches-ignore:
+      - "main"
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Run tests in container
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: "Build Docker image"
+        run: |
+          docker build -t midjourney-scraper .
+      # embarrasingly, no tests to run
