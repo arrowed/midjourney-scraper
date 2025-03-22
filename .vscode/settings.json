@@ -1,0 +1,14 @@
+{
+  "python.testing.pytestArgs": [
+    ".",
+    "--cov=data/report/. ",
+    "--cov-report=term-missing ",
+    "--cov-report=lcov:data/report/coverage.lcov ",
+    "--cov-report=json:data/report/coverage.json ",
+    "--cov-report=html:data/report/coverage ",
+    "--html=data/report/test.html",
+    "--self-contained-html "
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true
+}
