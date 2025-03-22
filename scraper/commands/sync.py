@@ -7,12 +7,13 @@ import logging
 import logging.handlers
 import re
 import uuid
-from human_scaling import HumanBytes
-from discord import DiscordApi
-from resolution_parser import ResolutionParser
 import time
 
 from requests.exceptions import ConnectionError
+
+from scraper.human_scaling import HumanBytes
+from scraper.discord import DiscordApi
+from scraper.resolution_parser import ResolutionParser
 
 load_dotenv()
 

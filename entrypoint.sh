@@ -7,4 +7,5 @@ fi
 
 cd /app
 . .venv/bin/activate
-python sync.py
+
+python -m scraper.commands.sync

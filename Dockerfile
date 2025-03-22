@@ -23,7 +23,7 @@ VOLUME /app/wallpapers
 
 COPY --from=build /app /app
 
-RUN chmod +x /app/*.py && \
+RUN chmod +x -R /app/*.py && \
     chmod +x /app/entrypoint.sh
 
 ENTRYPOINT [ "/app/entrypoint.sh"]

@@ -1,6 +1,6 @@
 from tempfile import TemporaryDirectory
 import unittest
-from resolution_parser import ResolutionParser
+from scraper.resolution_parser import ResolutionParser
 from PIL import Image
 import os
 

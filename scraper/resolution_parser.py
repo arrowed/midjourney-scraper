@@ -4,7 +4,7 @@ class ResolutionParser():
     rules = [
         # minx, miny, minratio, folder
         (0,0,16/9.0, "widescreen"),
-        (1024, 0, 0, "1080"),
+        (1920, 1280, 0, "1080"),
         (3840, 2160, 0, "4k"),
     ]
     error_folder = 'undefined'

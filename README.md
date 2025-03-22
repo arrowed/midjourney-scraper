@@ -30,6 +30,6 @@ Useful to debug the server component
 ## Running with docker
 
 ```sh
-docker build . -name midjourney-scraper
-docker run -it ./data:/app/data -v ./app/env:/app/env midjourney-scraper
+docker build . -t midjourney-scraper
+docker run -it -v ./data:/app/data -v .:/app/env midjourney-scraper
 ```

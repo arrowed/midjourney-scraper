@@ -7,9 +7,9 @@ import logging
 import logging.handlers
 import re
 import uuid
-from human_scaling import HumanBytes
-from discord import DiscordApi
-from resolution_parser import ResolutionParser
+from scraper.human_scaling import HumanBytes
+from scraper.discord import DiscordApi
+from scraper.resolution_parser import ResolutionParser
 import time
 
 from requests.exceptions import ConnectionError
@@ -20,7 +20,7 @@ WALLPAPER_OUTPUT_DIR = os.getenv('WALLPAPER_OUTPUT_DIR')
 download_dir_name = "download"
 
 
-from sync import publish
+from scraper.commands.sync import publish
 
 def backprocess():
     for channel in os.getenv("DISCORD_CHANNELS").split(','):
