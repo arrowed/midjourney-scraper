@@ -1,7 +1,10 @@
-.env
-venv
-log
-walls
 __pycache__
+.env
+.pytest_cache
+.venv
+*.pyc
 artists*.txt
 data
+log
+venv
+walls
