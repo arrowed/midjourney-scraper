@@ -17,13 +17,13 @@ class TestResolutionParser(unittest.TestCase):
         with TemporaryDirectory() as tmpdirname:
             fname = os.path.join(tmpdirname, 'test_1024.jpg')
 
-            with Image.new('RGB', (1024, 1080)) as img:
+            with Image.new('RGB', (1920, 1280)) as img:
                 img.save(fname)
             folder, width, height, ratio = self.parser.get_folder_for_file(fname)
             self.assertEqual(folder, "1080")
-            self.assertEqual(width, 1024)
-            self.assertEqual(height, 1080)
-            self.assertAlmostEqual(ratio, 1024/1080)
+            self.assertEqual(width, 1920)
+            self.assertEqual(height, 1280)
+            self.assertAlmostEqual(ratio, 1920/1280)
 
     def test_get_folder_for_file_4k(self):
         with TemporaryDirectory() as tmpdirname:
