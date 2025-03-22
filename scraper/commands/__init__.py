@@ -1,7 +1,4 @@
-from scraper.commands import backprocess
-from scraper.commands import sync
+from scraper.commands.backprocess import BackProcessCommand
+from scraper.commands.sync import SyncCommand
 
-command_arg_parsers={
-    'backprocess': backprocess,
-    'sync': sync
-}
+command_arg_parsers=[BackProcessCommand, SyncCommand]
