@@ -1,4 +1,18 @@
-FROM python:3.13-slim
+##### stage 1: Build assemble, test
+
+FROM python:slim-bookworm as build
+# pull in uv binaries
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+COPY . .
+RUN uv sync --frozen --no-install-project --no-dev
+RUN ls -laht /app
+
+##### Stage 2: Final/runtime
+
+FROM python:3.13-slim-bookworm as final
 
 WORKDIR /app
 
@@ -8,14 +22,8 @@ VOLUME /app/env
 # root dir of wallpapers
 VOLUME /app/wallpapers
 
-COPY entrypoint.sh /app/entrypoint.sh
-COPY requirements.txt /app/requirements.txt
+COPY --from=build /app /app
 
-RUN python -m venv /app/venv && \
-    python -m pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-COPY *.py /app
 RUN chmod +x /app/*.py && \
     chmod +x /app/entrypoint.sh
 

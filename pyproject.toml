@@ -1,0 +1,19 @@
+[project]
+name = "midjourney-scraper"
+version = "0.1.0"
+description = "Download images from midjourney"
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "python-dotenv>=1.0.1",
+    "requests>=2.32",
+    "Pillow>=11",
+    "pytest>=8.3.4",
+    "pytest-cov>=3.0.0",
+    "pytest-html>=3.0.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov . --cov-fail-under=50  --cov-report html --cov-report=term-missing --cov-report=lcov:data/report/coverage.lcov --cov-report=json:data/report/coverage.json --cov-report=html:data/report/coverage --html=data/report/test.html --self-contained-html"
+
