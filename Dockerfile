@@ -8,7 +8,6 @@ WORKDIR /app
 
 COPY . .
 RUN uv sync --frozen --no-install-project --no-dev
-RUN ls -laht /app
 
 ##### Stage 2: Final/runtime
 
