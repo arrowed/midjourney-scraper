@@ -3,9 +3,9 @@ from PIL import Image
 class ResolutionParser():
     rules = [
         # minx, miny, minratio, folder
-        (1024, 0, 0, "1080"),
-        (3000, 0, 0, "4k"),
         (0,0,16/9.0, "widescreen"),
+        (1024, 0, 0, "1080"),
+        (3840, 2160, 0, "4k"),
     ]
     error_folder = 'undefined'
     square_folder = 'square'
