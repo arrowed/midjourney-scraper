@@ -1,11 +1,13 @@
 import argparse
 import logging
+import os
 
 from dotenv import load_dotenv
 
 from scraper.commands import command_arg_parsers
 
 load_dotenv()
+
 
 def get_parser():
     parser = argparse.ArgumentParser()
@@ -21,7 +23,7 @@ def get_parser():
 
 
 def main():
-    
+
     parser = get_parser()
     args = parser.parse_args()
 
@@ -29,10 +31,14 @@ def main():
         parser.print_help()
         return
 
-    [command for command in command_arg_parsers if command().name == args.command][0]().run(args)
+    [command for command in command_arg_parsers if command().name ==
+     args.command][0]().run(args)
 
 
-def init_logging(): 
+def init_logging():
+
+    os.makedirs("log", exist_ok=True)
+
     discord_logger = logging.getLogger('discord')
     discord_logger.setLevel(logging.DEBUG)
 
@@ -45,11 +51,13 @@ def init_logging():
         backupCount=5,  # Rotate through 5 files
     )
     dt_fmt = '%Y-%m-%d %H:%M:%S'
-    formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
+    formatter = logging.Formatter(
+        '[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
     handler.setFormatter(formatter)
     discord_logger.addHandler(handler)
 
     return discord_logger
+
 
 if __name__ == '__main__':
     init_logging()
