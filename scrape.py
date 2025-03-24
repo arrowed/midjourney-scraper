@@ -6,11 +6,12 @@ from dotenv import load_dotenv
 
 from scraper.commands import command_arg_parsers
 
-load_dotenv()
-
 
 def get_parser():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--env', dest='envfile', type=str, default='.env',
+                        help='Path to the configuration file')
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -29,6 +30,10 @@ def main():
 
     if not args.command:
         parser.print_help()
+        return
+
+    if not load_dotenv(args.envfile):
+        logging.error(f"Could not load environment file {args.config}")
         return
 
     [command for command in command_arg_parsers if command().name ==
