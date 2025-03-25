@@ -17,6 +17,8 @@ Duplicate `.env-template` to `.env` and define
 - `NOTIFY_SERVER` If you want to push notifications from the downloading process to somewhere else. Blank is fine
 - `NOTIFY_SERVER_TOKEN` Your http `Authorization` header value to the `NOTIFY_SERVER`
 
+There are other CLI overrides MJ_OPTS, MJ_COMMAND, COMMAND_OPTS
+
 ## Running
 
 > python sync.py

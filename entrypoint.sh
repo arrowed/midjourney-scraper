@@ -8,4 +8,11 @@ fi
 cd /app
 . .venv/bin/activate
 
-python -m scraper.commands.sync
+. /app/.env
+
+if [ -z "$MJ_COMMAND" ]
+then
+    MJ_COMMAND=scrape
+fi
+
+python mj.py --env /app/.env $MJ_OPTS $MJ_COMMAND $COMMAND_OPTS

@@ -6,10 +6,11 @@ import logging.config
 import logging.handlers
 import os
 import re
-import requests
 from tempfile import TemporaryDirectory
 import time
 import uuid
+
+import requests
 
 from scraper.human_scaling import HumanBytes
 from scraper.discord import DiscordApi
@@ -18,10 +19,10 @@ from scraper.resolution_parser import ResolutionParser
 logger = logging.getLogger(__name__)
 
 
-class SyncCommand():
+class ScrapeCommand():
 
     def __init__(self):
-        self.name = 'sync'
+        self.name = 'scrape'
         self.help = 'Stream images from Discord to disk and notify sink'
 
         self.download_dir_name = "download"
@@ -202,4 +203,4 @@ class SyncCommand():
 
 
 if __name__ == '__main__':
-    SyncCommand().run(Namespace())
+    ScrapeCommand().run(Namespace())
