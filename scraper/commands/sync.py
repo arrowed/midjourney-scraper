@@ -7,6 +7,7 @@ import logging.handlers
 import os
 import re
 import requests
+from tempfile import TemporaryDirectory
 import time
 import uuid
 
@@ -147,60 +148,62 @@ class SyncCommand():
 
         while True:
             try:
-                for channel in os.getenv("DISCORD_CHANNELS").split(','):
-                    channel_id, channel_name = channel.split('|')
-                    print(f"Starting {channel_name} ({channel_id})")
+                with TemporaryDirectory() as tmpdirname:
+                    for channel in os.getenv("DISCORD_CHANNELS").split(','):
+                        channel_id, channel_name = channel.split('|')
+                        print(f"Starting {channel_name} ({channel_id})")
 
-                    api_response = self.api.get_messages(channel_id)
-                    with open(f"log/data-{channel_name}.json", 'w', encoding="utf-8") as f:
-                        f.write(json.dumps(api_response,
-                                sort_keys=True, indent=2))
+                        api_response = self.api.get_messages(channel_id)
+                        with open(f"log/data-{channel_name}.json", 'w', encoding="utf-8") as f:
+                            f.write(json.dumps(api_response,
+                                    sort_keys=True, indent=2))
 
-                    for row in api_response:
-                        if 'attachments' in row.keys():
-                            for attachment in row['attachments']:
-                                url = attachment['url']
-                                filename = self.sanitise(url)
-                                download_file = os.path.join(
-                                    self.WALLPAPER_OUTPUT_DIR, self.download_dir_name, channel_name, filename)
-                                os.makedirs(os.path.dirname(
-                                    download_file), exist_ok=True)
-
-                                if url not in downloaded_urls[channel_id]:
-                                    downloaded_urls[channel_id] += [url]
-
-                                    dl = requests.get(url, timeout=10)
-
-                                    with open(download_file, 'wb') as f:
-                                        f.write(dl.content)
-
-                                    size = dl.headers.get('Content-Length')
-                                    if size is None:
-                                        size = 0
-                                    else:
-                                        size = int(size)
-
-                                    downloaded_bytes = HumanBytes.format(size)
-
-                                    resolution_target_dir, x, y, api_response = self.parser.get_folder_for_file(
-                                        download_file)
-                                    print(
-                                        f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
-
-                                    if args.limit_resolutions and resolution_target_dir not in args.limit_resolutions:
-                                        print('skipped')
-                                        continue  # skip and move on
-
-                                    print('keeping')
-
-                                    target_file = os.path.join(
-                                        self.WALLPAPER_OUTPUT_DIR, resolution_target_dir, channel_name, filename)
+                        for row in api_response:
+                            if 'attachments' in row.keys():
+                                for attachment in row['attachments']:
+                                    url = attachment['url']
+                                    filename = self.sanitise(url)
+                                    download_file = os.path.join(
+                                        tmpdirname, channel_name + '-' + filename)
                                     os.makedirs(os.path.dirname(
-                                        target_file), exist_ok=True)
-                                    os.rename(download_file, target_file)
+                                        download_file), exist_ok=True)
 
-                                    self.publish(
-                                        target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
+                                    if url not in downloaded_urls[channel_id]:
+                                        downloaded_urls[channel_id] += [url]
+
+                                        dl = requests.get(url, timeout=10)
+
+                                        with open(download_file, 'wb') as f:
+                                            f.write(dl.content)
+
+                                        size = dl.headers.get('Content-Length')
+                                        if size is None:
+                                            size = 0
+                                        else:
+                                            size = int(size)
+
+                                        downloaded_bytes = HumanBytes.format(
+                                            size)
+
+                                        resolution_target_dir, x, y, api_response = self.parser.get_folder_for_file(
+                                            download_file)
+                                        print(
+                                            f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
+
+                                        if args.limit_resolutions and resolution_target_dir not in args.limit_resolutions:
+                                            print('skipped')
+                                            continue  # skip and move on
+
+                                        print('keeping')
+
+                                        target_file = os.path.join(
+                                            self.WALLPAPER_OUTPUT_DIR, resolution_target_dir, channel_name, filename)
+                                        os.makedirs(os.path.dirname(
+                                            target_file), exist_ok=True)
+                                        os.rename(download_file, target_file)
+
+                                        self.publish(
+                                            target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
 
                 self.write_state(downloaded_urls)
             finally:
