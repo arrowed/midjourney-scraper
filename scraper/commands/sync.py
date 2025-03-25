@@ -50,19 +50,19 @@ class SyncCommand():
             fetched[channel_id] = []
 
             if os.path.exists(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file)):
-                with open(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file), 'r') as checkpoint:
+                with open(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file), 'r', encoding='utf-8') as checkpoint:
                     for line in checkpoint.readlines():
                         fetched[channel_id] += [line.strip()]
 
         return fetched
 
-    def write_state(self, state): 
+    def write_state(self, state):
         for channel in os.getenv("DISCORD_CHANNELS").split(','):
             channel_id, channel_name = channel.split('|')
 
             state_file = f"state-{channel_name}.txt"
 
-            with open(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file), 'w') as checkpoint:
+            with open(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file), 'w', encoding='utf-8') as checkpoint:
                 checkpoint.writelines([str(i)+'\n' for i in state[channel_id]])
 
     def create_app_folders(self):
