@@ -114,7 +114,8 @@ class SyncCommand():
                     "size": lengthBytes
                 }
             }
-            r = requests.post(url, headers=headers, data=json.dumps(payload))
+            r = requests.post(url, headers=headers,
+                              data=json.dumps(payload), timeout=10)
             if r.status_code in [200]:
                 return r.json()
             else:
@@ -160,8 +161,8 @@ class SyncCommand():
                                 if url not in self.downloaded_urls[channel_id]:
                                     self.downloaded_urls[channel_id] += [url]
 
-                                    dl = requests.get(url)
-                                    
+                                    dl = requests.get(url, timeout=10)
+
                                     with open(download_file, 'wb') as f:
                                         f.write(dl.content)
 
