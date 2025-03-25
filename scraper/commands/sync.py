@@ -1,5 +1,5 @@
 
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 import json
 import logging
 import logging.config
@@ -9,8 +9,6 @@ import re
 import requests
 import time
 import uuid
-
-from requests.exceptions import ConnectionError
 
 from scraper.human_scaling import HumanBytes
 from scraper.discord import DiscordApi
@@ -25,11 +23,16 @@ class SyncCommand():
         self.help = 'Stream images from Discord to disk and notify sink'
 
         self.download_dir_name = "download"
-        self.WALLPAPER_OUTPUT_DIR :str
+        self.WALLPAPER_OUTPUT_DIR: str
         self.args = Namespace()
 
-    def add_arguments(self, parser):
-        pass
+        self.parser = ResolutionParser()
+        self.api: DiscordApi
+
+    def add_arguments(self, parser: ArgumentParser):
+        parser.add_argument('--limit-resolutions', '-r', choices=[name for _, _, _, name in ResolutionParser.rules],
+                            default=[], action='append',
+                            help='Limit to specific resolutions')
 
     def sanitise(self, url):
         resource_name = url.split('/')[-1].split('?')[0]
@@ -39,7 +42,6 @@ class SyncCommand():
         uniq = '_' + uuid.uuid4().hex
 
         return ("".join([c for c in file_base if re.match(r'\w', c)]) + uniq + extension)[0:200]
-
 
     def read_state(self):
         fetched = {}
@@ -97,9 +99,10 @@ class SyncCommand():
             return
 
         url = f"{os.getenv('NOTIFY_SERVER_URL')}/image"
-        headers = {"authorization": os.getenv("NOTIFY_SERVER_TOKEN"), "content-type": "application/json"}
+        headers = {"authorization": os.getenv(
+            "NOTIFY_SERVER_TOKEN"), "content-type": "application/json"}
 
-        try:    
+        try:
             payload = {
                 "channel": {
                     "id": channel_id,
@@ -132,12 +135,11 @@ class SyncCommand():
         
         self.WALLPAPER_OUTPUT_DIR = os.getenv('WALLPAPER_OUTPUT_DIR')
 
+        self.create_app_folders()
+
         downloaded_urls = self.read_state()
 
-        self.api=DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
-        self.parser = ResolutionParser()
-        os.makedirs("log", exist_ok=True)
-        self.create_app_folders()
+        self.api = DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
 
         print(f"All channels {os.getenv('DISCORD_CHANNELS')}")
         
@@ -171,11 +173,20 @@ class SyncCommand():
                                         size = 0
                                     else:
                                         size = int(size)
-                                        
-                                    downloaded_bytes=HumanBytes.format(size)
 
-                                    resolution_target_dir, x, y, api_response = self.parser.get_folder_for_file(download_file)
-                                    print(f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})")
+                                    downloaded_bytes = HumanBytes.format(size)
+
+                                    resolution_target_dir, x, y, api_response = self.parser.get_folder_for_file(
+                                        download_file)
+                                    print(
+                                        f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
+
+                                    if args.limit_resolutions and resolution_target_dir not in args.limit_resolutions:
+                                        print('skipped')
+                                        continue  # skip and move on
+
+                                    print('keeping')
+
 
                                     target_file =  os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename)
                                     os.rename(download_file, target_file)
