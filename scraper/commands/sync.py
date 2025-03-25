@@ -16,8 +16,9 @@ from scraper.resolution_parser import ResolutionParser
 
 logger = logging.getLogger(__name__)
 
+
 class SyncCommand():
-    
+
     def __init__(self):
         self.name = 'sync'
         self.help = 'Stream images from Discord to disk and notify sink'
@@ -70,17 +71,19 @@ class SyncCommand():
     def create_app_folders(self):
         os.makedirs(self.WALLPAPER_OUTPUT_DIR, exist_ok=True)
 
-        for channel in os.getenv("DISCORD_CHANNELS").split(','):
-            _, channel_name = channel.split('|')
+        # for channel in os.getenv("DISCORD_CHANNELS").split(','):
+        #     _, channel_name = channel.split('|')
 
-            os.makedirs(os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name, self.download_dir_name), exist_ok=True)
+        #     os.makedirs(os.path.join(self.WALLPAPER_OUTPUT_DIR,
+        #                 channel_name, self.download_dir_name), exist_ok=True)
 
-            for d in ResolutionParser().get_all_targets():
-                os.makedirs(os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name, d), exist_ok=True)
+        #     for d in ResolutionParser().get_all_targets():
+        #         os.makedirs(os.path.join(self.WALLPAPER_OUTPUT_DIR,
+        #                     channel_name, d), exist_ok=True)
 
     def bulk_process_download(self):
         for channel in os.getenv("DISCORD_CHANNELS").split(','):
-            channel_id, channel_name = channel.split('|')
+            _, channel_name = channel.split('|')
             parser = ResolutionParser()
 
             base = os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name)
@@ -132,7 +135,6 @@ class SyncCommand():
 
     def run(self, args):
         self.args = args
-        
         self.WALLPAPER_OUTPUT_DIR = os.getenv('WALLPAPER_OUTPUT_DIR')
 
         self.create_app_folders()
@@ -142,26 +144,30 @@ class SyncCommand():
         self.api = DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
 
         print(f"All channels {os.getenv('DISCORD_CHANNELS')}")
-        
+
         while True:
             try:
                 for channel in os.getenv("DISCORD_CHANNELS").split(','):
                     channel_id, channel_name = channel.split('|')
                     print(f"Starting {channel_name} ({channel_id})")
 
-                    api_response=self.api.get_messages(channel_id)
+                    api_response = self.api.get_messages(channel_id)
                     with open(f"log/data-{channel_name}.json", 'w', encoding="utf-8") as f:
-                        f.write(json.dumps(api_response, sort_keys=True, indent=2))
+                        f.write(json.dumps(api_response,
+                                sort_keys=True, indent=2))
 
                     for row in api_response:
                         if 'attachments' in row.keys():
                             for attachment in row['attachments']:
                                 url = attachment['url']
                                 filename = self.sanitise(url)
-                                download_file = os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name, self.download_dir_name, filename)
+                                download_file = os.path.join(
+                                    self.WALLPAPER_OUTPUT_DIR, self.download_dir_name, channel_name, filename)
+                                os.makedirs(os.path.dirname(
+                                    download_file), exist_ok=True)
 
-                                if url not in self.downloaded_urls[channel_id]:
-                                    self.downloaded_urls[channel_id] += [url]
+                                if url not in downloaded_urls[channel_id]:
+                                    downloaded_urls[channel_id] += [url]
 
                                     dl = requests.get(url, timeout=10)
 
@@ -187,11 +193,14 @@ class SyncCommand():
 
                                     print('keeping')
 
-
-                                    target_file =  os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name, resolution_target_dir, filename)
+                                    target_file = os.path.join(
+                                        self.WALLPAPER_OUTPUT_DIR, resolution_target_dir, channel_name, filename)
+                                    os.makedirs(os.path.dirname(
+                                        target_file), exist_ok=True)
                                     os.rename(download_file, target_file)
 
-                                    self.publish(target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
+                                    self.publish(
+                                        target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
 
                 self.write_state(downloaded_urls)
             finally:
@@ -200,4 +209,4 @@ class SyncCommand():
 
 
 if __name__ == '__main__':
-    SyncCommand().run()
+    SyncCommand().run(Namespace())
