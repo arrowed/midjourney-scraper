@@ -72,16 +72,6 @@ class SyncCommand():
     def create_app_folders(self):
         os.makedirs(self.WALLPAPER_OUTPUT_DIR, exist_ok=True)
 
-        # for channel in os.getenv("DISCORD_CHANNELS").split(','):
-        #     _, channel_name = channel.split('|')
-
-        #     os.makedirs(os.path.join(self.WALLPAPER_OUTPUT_DIR,
-        #                 channel_name, self.download_dir_name), exist_ok=True)
-
-        #     for d in ResolutionParser().get_all_targets():
-        #         os.makedirs(os.path.join(self.WALLPAPER_OUTPUT_DIR,
-        #                     channel_name, d), exist_ok=True)
-
     def bulk_process_download(self):
         for channel in os.getenv("DISCORD_CHANNELS").split(','):
             _, channel_name = channel.split('|')
