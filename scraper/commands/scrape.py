@@ -6,12 +6,11 @@ import logging.config
 import logging.handlers
 import os
 import re
-import shutil
-from tempfile import TemporaryDirectory
 import time
 import uuid
 
 import requests
+
 
 from scraper.human_scaling import HumanBytes
 from scraper.discord import DiscordApi
@@ -38,7 +37,7 @@ class ScrapeCommand():
                             default=[], action='append',
                             help='Limit to specific resolutions')
 
-    def sanitise(self, url):
+    def sanitise(self, url) -> str:
         resource_name = url.split('/')[-1].split('?')[0]
         extension = '.' + resource_name.split('.')[-1]
         file_base = "".join(resource_name.split('.')[0:-1])
@@ -141,67 +140,71 @@ class ScrapeCommand():
 
         while True:
             try:
-                with TemporaryDirectory() as tmpdirname:
-                    for channel in os.getenv("DISCORD_CHANNELS").split(','):
-                        channel_id, channel_name = channel.split('|')
-                        print(f"Starting {channel_name} ({channel_id})")
+                for channel in os.getenv("DISCORD_CHANNELS").split(','):
+                    channel_id, channel_name = channel.split('|')
+                    print(f"Starting {channel_name} ({channel_id})")
 
-                        api_response = self.api.get_messages(channel_id)
-                        with open(f"log/data-{channel_name}.json", 'w', encoding="utf-8") as f:
-                            f.write(json.dumps(api_response,
-                                    sort_keys=True, indent=2))
+                    api_response = self.api.get_messages(channel_id)
+                    with open(f"log/data-{channel_name}.json", 'w', encoding="utf-8") as f:
+                        f.write(json.dumps(api_response,
+                                sort_keys=True, indent=2))
 
-                        for row in api_response:
-                            if 'attachments' in row.keys():
-                                for attachment in row['attachments']:
-                                    url = attachment['url']
-                                    filename = self.sanitise(url)
-                                    download_file = os.path.join(
-                                        tmpdirname, channel_name + '-' + filename)
-                                    os.makedirs(os.path.dirname(
-                                        download_file), exist_ok=True)
+                    for row in api_response:
+                        if 'attachments' in row.keys():
+                            for attachment in row['attachments']:
+                                width, height, size = self._get_metadata(
+                                    attachment)
 
-                                    if url not in downloaded_urls[channel_id]:
-                                        downloaded_urls[channel_id] += [url]
+                                downloaded_bytes = HumanBytes.format(size)
+                                resolution_target_dir, x, y, api_response = self.parser.get_folder_for_dimensions(
+                                    width, height)
+                                filename = self.sanitise(attachment['url'])
+                                print(
+                                    f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
 
-                                        dl = requests.get(url, timeout=10)
+                                if args.limit_resolutions and resolution_target_dir not in args.limit_resolutions:
+                                    print('skipped')
+                                    continue  # skip and move on
 
-                                        with open(download_file, 'wb') as f:
-                                            f.write(dl.content)
+                                print('keeping')
 
-                                        size = dl.headers.get('Content-Length')
-                                        if size is None:
-                                            size = 0
-                                        else:
-                                            size = int(size)
+                                target_dir = os.path.join(
+                                    self.WALLPAPER_OUTPUT_DIR, resolution_target_dir, channel_name)
 
-                                        downloaded_bytes = HumanBytes.format(
-                                            size)
+                                # download it
+                                target_file = self.download_attachment(
+                                    attachment, target_dir)
+                                size = os.path.getsize(target_file)
+                                downloaded_urls[channel_id] += [attachment['url']]
 
-                                        resolution_target_dir, x, y, api_response = self.parser.get_folder_for_file(
-                                            download_file)
-                                        print(
-                                            f"{channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
-
-                                        if args.limit_resolutions and resolution_target_dir not in args.limit_resolutions:
-                                            print('skipped')
-                                            continue  # skip and move on
-
-                                        print('keeping')
-
-                                        target_file = os.path.join(
-                                            self.WALLPAPER_OUTPUT_DIR, resolution_target_dir, channel_name, filename)
-                                        os.makedirs(os.path.dirname(
-                                            target_file), exist_ok=True)
-                                        shutil.move(download_file, target_file)
-
-                                        self.publish(
-                                            target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
+                                self.publish(
+                                    target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
 
                 self.write_state(downloaded_urls)
             finally:
                 print("sleeping")
                 time.sleep(30)
+
+    # x, y, size
+    def _get_metadata(self, discord_response: dict) -> tuple[int, int, int]:
+        width = discord_response['width']
+        height = discord_response['height']
+        size = discord_response['size']
+        return width, height, size
+
+    def download_attachment(self, attach_data: dict, to_directory: str) -> str:
+
+        url = attach_data['url']
+        filename = self.sanitise(url)
+        download_file = os.path.join(to_directory, filename)
+        os.makedirs(to_directory, exist_ok=True)
+
+        dl = requests.get(url, timeout=10)
+
+        with open(download_file, 'wb') as f:
+            f.write(dl.content)
+
+        return download_file
 
 
 if __name__ == '__main__':
