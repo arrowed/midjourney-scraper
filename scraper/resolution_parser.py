@@ -33,6 +33,13 @@ class ResolutionParser():
             print(e)
             return (self.error_folder, 0, 0, 0.0)
 
+    def get_folder_for_dimensions(self, width, height) -> tuple[int, int, float, str]:
+        try:
+            return (self._get_rule_match(width, height), width, height, width/height)
+        except Exception as e:
+            print(e)
+            return (self.error_folder, 0, 0, 0.0)
+
     def _get_rule_match(self, width, height):
         target = self.error_folder
 
