@@ -10,8 +10,7 @@ import time
 import uuid
 
 import requests
-
-
+import requests_cache
 from scraper.human_scaling import HumanBytes
 from scraper.discord import DiscordApi
 from scraper.resolution_parser import ResolutionParser
@@ -25,6 +24,7 @@ class ScrapeCommand():
         self.name = 'scrape'
         self.help = 'Stream images from Discord to disk and notify sink'
 
+        self.base_dir = os.path.dirname(os.getenv('BASE_DATA_DIR', 'data'))
         self.download_dir_name = "download"
         self.WALLPAPER_OUTPUT_DIR: str
         self.args = Namespace()
@@ -46,30 +46,6 @@ class ScrapeCommand():
 
         return ("".join([c for c in file_base if re.match(r'\w', c)]) + uniq + extension)[0:200]
 
-    def read_state(self):
-        fetched = {}
-        for channel in os.getenv("DISCORD_CHANNELS").split(','):
-            channel_id, channel_name = channel.split('|')
-
-            state_file = f"state-{channel_name}.txt"
-            fetched[channel_id] = []
-
-            if os.path.exists(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file)):
-                with open(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file), 'r', encoding='utf-8') as checkpoint:
-                    for line in checkpoint.readlines():
-                        fetched[channel_id] += [line.strip()]
-
-        return fetched
-
-    def write_state(self, state):
-        for channel in os.getenv("DISCORD_CHANNELS").split(','):
-            channel_id, channel_name = channel.split('|')
-
-            state_file = f"state-{channel_name}.txt"
-
-            with open(os.path.join(self.WALLPAPER_OUTPUT_DIR, state_file), 'w', encoding='utf-8') as checkpoint:
-                checkpoint.writelines([str(i)+'\n' for i in state[channel_id]])
-
     def create_app_folders(self):
         os.makedirs(self.WALLPAPER_OUTPUT_DIR, exist_ok=True)
 
@@ -78,7 +54,8 @@ class ScrapeCommand():
             _, channel_name = channel.split('|')
             parser = ResolutionParser()
 
-            base = os.path.join(self.WALLPAPER_OUTPUT_DIR, channel_name)
+            base = os.path.join(
+                self.base_dir, self.WALLPAPER_OUTPUT_DIR, channel_name)
             for d, n, fi in os.walk(os.path.join(base, self.download_dir_name)):
                 print(d, n, fi)
 
@@ -127,11 +104,11 @@ class ScrapeCommand():
 
     def run(self, args):
         self.args = args
-        self.WALLPAPER_OUTPUT_DIR = os.getenv('WALLPAPER_OUTPUT_DIR')
+        self.base_dir = os.getenv('BASE_DATA_DIR', 'data')
+        self.WALLPAPER_OUTPUT_DIR = os.path.join(
+            self.base_dir, os.getenv('WALLPAPER_OUTPUT_DIR'))
 
         self.create_app_folders()
-
-        downloaded_urls = self.read_state()
 
         self.api = DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
 
@@ -175,12 +152,10 @@ class ScrapeCommand():
                                 target_file = self.download_attachment(
                                     attachment, target_dir)
                                 size = os.path.getsize(target_file)
-                                downloaded_urls[channel_id] += [attachment['url']]
 
                                 self.publish(
                                     target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
 
-                self.write_state(downloaded_urls)
             finally:
                 print("sleeping")
                 time.sleep(30)
@@ -193,13 +168,18 @@ class ScrapeCommand():
         return width, height, size
 
     def download_attachment(self, attach_data: dict, to_directory: str) -> str:
+        session = requests_cache.CachedSession(
+            os.path.join(self.base_dir, 'image_download_cache'),
+            expire_after=3600,
+            backend='sqlite'
+        )
 
         url = attach_data['url']
         filename = self.sanitise(url)
         download_file = os.path.join(to_directory, filename)
         os.makedirs(to_directory, exist_ok=True)
 
-        dl = requests.get(url, timeout=10)
+        dl = session.get(url, timeout=10)
 
         with open(download_file, 'wb') as f:
             f.write(dl.content)
