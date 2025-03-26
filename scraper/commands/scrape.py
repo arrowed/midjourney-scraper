@@ -6,6 +6,7 @@ import logging.config
 import logging.handlers
 import os
 import re
+import shutil
 from tempfile import TemporaryDirectory
 import time
 import uuid
@@ -136,6 +137,7 @@ class ScrapeCommand():
         self.api = DiscordApi(os.getenv("DISCORD_USER_TOKEN"))
 
         print(f"All channels {os.getenv('DISCORD_CHANNELS')}")
+        print(f"Saving to {self.WALLPAPER_OUTPUT_DIR}")
 
         while True:
             try:
@@ -191,7 +193,7 @@ class ScrapeCommand():
                                             self.WALLPAPER_OUTPUT_DIR, resolution_target_dir, channel_name, filename)
                                         os.makedirs(os.path.dirname(
                                             target_file), exist_ok=True)
-                                        os.rename(download_file, target_file)
+                                        shutil.move(download_file, target_file)
 
                                         self.publish(
                                             target_file, channel_id, channel_name, resolution_target_dir, filename, x, y, size)
