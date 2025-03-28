@@ -155,20 +155,38 @@ class TestScraper(unittest.TestCase):
     def test_get_safe_filename(self, mock_md5):
         mock_md5.return_value.hexdigest.return_value = 'hash'
 
+        def scenario(example, wanted) -> dict:
+            # Test data
+            attachment_data = {
+                'url': 'https://example.com/something/test_image.jpg',
+                'filename': example
+            }
+
+            return example, wanted, attachment_data
+
         # Test data
-        attachment_data = {
-            'url': 'https://example.com/something/test_image.jpg',
-            'filename': 'test_image$pe\tcial.jpg',
-            'width': 1920,
-            'height': 1080,
-            'size': 1024
-        }
+        cases = [
+            scenario('test_image.jpg', 'test_image_hash.jpg'),
+            scenario('test_image_with_$pecial_chars!.jpg',
+                     'test_image_with_pecial_chars_hash.jpg'),
+            scenario('test_image_with_!@#$%^&*()_+.jpg',
+                     'test_image_with___hash.jpg'),
+            scenario('test_image_with_space.jpg',
+                     'test_image_with_space_hash.jpg'),
+            scenario('test_image_with_../../..\\..\\.jpg',
+                     'test_image_with__hash.jpg'),
+            scenario('test_image_with_%20.jpg',
+                     'test_image_with_20_hash.jpg'),
+            scenario('test_image_with_no_extension',
+                     'test_image_with_no_extension_hash'),
+        ]
 
         # Call the method
-        filename = self.scraper.get_safe_local_filename(attachment_data)
+        for example, wanted, attachment_data in cases:
+            filename = self.scraper.get_safe_local_filename(attachment_data)
 
-        # Assertions
-        self.assertEqual(filename, 'test_imagepecial_hash.jpg')
+            self.assertEqual(
+                filename, wanted, f"Scenario failed for {example}, expected {wanted} but got {filename}")
 
 
 if __name__ == '__main__':

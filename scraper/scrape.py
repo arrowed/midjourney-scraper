@@ -36,8 +36,12 @@ class Scraper():
         self.debug = ('debug' in args) or debug
 
     def get_safe_local_filename(self, ref: dict) -> str:
-        file_component = '.'.join(ref['filename'].split('.')[:-1])
-        extension = '.' + ref['filename'].split('.')[-1]
+        if '.' in ref['filename']:
+            file_component = '.'.join(ref['filename'].split('.')[:-1])
+            extension = '.' + ref['filename'].split('.')[-1]
+        else:
+            file_component = ref['filename']
+            extension = ''
 
         # sometimes filename is 'image.png', so make it unique per url
         addition = hashlib.md5(ref['url'].encode('utf-8')).hexdigest()
