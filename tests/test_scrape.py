@@ -18,7 +18,8 @@ class TestScraper(unittest.TestCase):
             self.channel_id, self.channel_name, self.api, self.args)
 
     @patch('requests.get')
-    def test_download_attachment_success(self, mock_get):
+    @patch('hashlib.md5')
+    def test_download_attachment_success(self, mock_md5, mock_get):
         # Setup
         with TemporaryDirectory() as tempdir:
             # Mock session and response
@@ -26,9 +27,12 @@ class TestScraper(unittest.TestCase):
             mock_response.content = b'test image content'
             mock_get.return_value = mock_response
 
+            mock_md5.return_value.hexdigest.return_value = 'hash'
+
             # Test data
             attachment_data = {
                 'url': 'https://example.com/test_image.jpg',
+                'filename': 'test_image.jpg',
                 'width': 1920,
                 'height': 1080,
                 'size': 1024
@@ -41,7 +45,7 @@ class TestScraper(unittest.TestCase):
             # Assertions
             self.assertTrue(os.path.exists(downloaded_file))
             self.assertEqual(os.path.basename(
-                downloaded_file), 'test_image.jpg')
+                downloaded_file), 'test_image_hash.jpg')
 
             # Verify session was created with correct parameters
             mock_get.assert_called_once()
@@ -55,7 +59,8 @@ class TestScraper(unittest.TestCase):
                 self.assertEqual(f.read(), b'test image content')
 
     @patch('requests.get')
-    def test_download_attachment_with_special_chars(self, mock_get):
+    @patch('hashlib.md5')
+    def test_download_attachment_with_special_chars(self, mock_md5, mock_get):
         # Setup
         with TemporaryDirectory() as tempdir:
             # Mock session and response
@@ -63,9 +68,12 @@ class TestScraper(unittest.TestCase):
             mock_response.content = b'test image content'
             mock_get.return_value = mock_response
 
+            mock_md5.return_value.hexdigest.return_value = 'hash'
+
             # Test data with special characters
             attachment_data = {
-                'url': 'https://example.com/test_image_with_$pecial_chars!.jpg',
+                'url': 'https://example.com/something_else_entirely.jpg',
+                'filename': 'test_image_with_$pecial_chars!.jpg',
                 'width': 1920,
                 'height': 1080,
                 'size': 1024
@@ -79,11 +87,11 @@ class TestScraper(unittest.TestCase):
             self.assertTrue(os.path.exists(downloaded_file))
             # Should have sanitized the filename
             self.assertEqual(os.path.basename(downloaded_file),
-                             'test_image_with_pecial_chars.jpg')
+                             'test_image_with_pecial_chars_hash.jpg')
 
             # Verify the request was made with the original URL
             mock_get.assert_called_once_with(
-                'https://example.com/test_image_with_$pecial_chars!.jpg',
+                'https://example.com/something_else_entirely.jpg',
                 timeout=10
             )
 
@@ -101,6 +109,7 @@ class TestScraper(unittest.TestCase):
             # Test data
             attachment_data = {
                 'url': 'https://example.com/test_image.jpg',
+                'filename': 'test_image.jpg',
                 'width': 1920,
                 'height': 1080,
                 'size': 1024
@@ -127,6 +136,7 @@ class TestScraper(unittest.TestCase):
             # Test data
             attachment_data = {
                 'url': 'https://example.com/test_image.jpg',
+                'filename': 'test_image.jpg',
                 'width': 1920,
                 'height': 1080,
                 'size': 1024
@@ -140,6 +150,25 @@ class TestScraper(unittest.TestCase):
 
             # Assertions
             mock_get.assert_called_once()
+
+    @patch('hashlib.md5')
+    def test_get_safe_filename(self, mock_md5):
+        mock_md5.return_value.hexdigest.return_value = 'hash'
+
+        # Test data
+        attachment_data = {
+            'url': 'https://example.com/something/test_image.jpg',
+            'filename': 'test_image$pe\tcial.jpg',
+            'width': 1920,
+            'height': 1080,
+            'size': 1024
+        }
+
+        # Call the method
+        filename = self.scraper.get_safe_local_filename(attachment_data)
+
+        # Assertions
+        self.assertEqual(filename, 'test_imagepecial_hash.jpg')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 
 from argparse import Namespace
+import hashlib
 import json
 import logging
 import logging.config
@@ -34,12 +35,14 @@ class Scraper():
 
         self.debug = ('debug' in args) or debug
 
-    def sanitise(self, url) -> str:
-        resource_name = url.split('/')[-1].split('?')[0]
-        extension = '.' + resource_name.split('.')[-1]
-        file_base = "".join(resource_name.split('.')[0:-1])
+    def get_safe_local_filename(self, ref: dict) -> str:
+        file_component = '.'.join(ref['filename'].split('.')[:-1])
+        extension = '.' + ref['filename'].split('.')[-1]
 
-        return ("".join([c for c in file_base if re.match(r'\w', c)]) + extension)[0:200]
+        # sometimes filename is 'image.png', so make it unique per url
+        addition = hashlib.md5(ref['url'].encode('utf-8')).hexdigest()
+
+        return ("".join([c for c in file_component if re.match(r'\w', c)]) + "_" + addition + extension)[0:200]
 
     def ensure_folders(self):
         os.makedirs(self.WALLPAPER_OUTPUT_DIR, exist_ok=True)
@@ -61,9 +64,8 @@ class Scraper():
                     downloaded_bytes = HumanBytes.format(size)
                     resolution_target_dir, x, y, api_response = self.parser.get_folder_for_dimensions(
                         width, height)
-                    filename = self.sanitise(attachment['url'])
                     print(
-                        f"{self.channel_name}/{filename} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
+                        f"{self.channel_name}/{attachment['filename']} ({downloaded_bytes}) -> {resolution_target_dir} ({x}, {y}, {api_response})", end=' ')
 
                     if self.args.limit_resolutions and resolution_target_dir not in self.args.limit_resolutions:
                         print('skipped')
@@ -80,7 +82,7 @@ class Scraper():
                     size = os.path.getsize(target_file)
 
                     publish_fn(
-                        target_file, self.channel_id, self.channel_name, resolution_target_dir, filename, x, y, size)
+                        target_file, self.channel_id, self.channel_name, resolution_target_dir, os.path.basename(target_file), x, y, size)
 
      # x, y, size
     def _get_metadata(self, discord_response: dict) -> tuple[int, int, int]:
@@ -91,7 +93,7 @@ class Scraper():
 
     def download_attachment(self, attach_data: dict, to_directory: str) -> str:
         url = attach_data['url']
-        filename = self.sanitise(url)
+        filename = self.get_safe_local_filename(attach_data)
         download_file = os.path.join(to_directory, filename)
 
         if os.path.exists(download_file):
