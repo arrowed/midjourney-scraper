@@ -23,7 +23,7 @@ def get_parser():
     return parser
 
 
-def main():
+def main() -> None:
 
     parser = get_parser()
     args = parser.parse_args()
@@ -33,7 +33,7 @@ def main():
         return
 
     if not load_dotenv(args.envfile):
-        logging.error(f"Could not load environment file {args.config}")
+        logging.error("Could not load environment file %s", args.config)
         return
 
     [command for command in command_arg_parsers if command().name ==
