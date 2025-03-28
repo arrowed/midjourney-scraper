@@ -7,9 +7,9 @@ import logging.handlers
 import os
 import re
 from typing import Callable
-import uuid
 
-import requests_cache
+import requests
+
 from scraper.human_scaling import HumanBytes
 from scraper.discord import DiscordApi
 from scraper.resolution_parser import ResolutionParser
@@ -39,9 +39,7 @@ class Scraper():
         extension = '.' + resource_name.split('.')[-1]
         file_base = "".join(resource_name.split('.')[0:-1])
 
-        uniq = '_' + uuid.uuid4().hex
-
-        return ("".join([c for c in file_base if re.match(r'\w', c)]) + uniq + extension)[0:200]
+        return ("".join([c for c in file_base if re.match(r'\w', c)]) + extension)[0:200]
 
     def ensure_folders(self):
         os.makedirs(self.WALLPAPER_OUTPUT_DIR, exist_ok=True)
@@ -92,18 +90,16 @@ class Scraper():
         return width, height, size
 
     def download_attachment(self, attach_data: dict, to_directory: str) -> str:
-        session = requests_cache.CachedSession(
-            os.path.join(self.base_dir, 'image_download_cache'),
-            expire_after=3600,
-            backend='sqlite'
-        )
-
         url = attach_data['url']
         filename = self.sanitise(url)
         download_file = os.path.join(to_directory, filename)
+
+        if os.path.exists(download_file):
+            return download_file
+
         os.makedirs(to_directory, exist_ok=True)
 
-        dl = session.get(url, timeout=10)
+        dl = requests.get(url, timeout=10)
 
         with open(download_file, 'wb') as f:
             f.write(dl.content)
